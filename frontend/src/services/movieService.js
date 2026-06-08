@@ -29,3 +29,8 @@ export const getMoodRecommendations = async (mood) => {
   const res = await api.post('/movies/recommend', { mood });
   return res.data;
 };
+
+export const getMovieTrailer = async (title) => {
+  const res = await api.get(`/movies/${encodeURIComponent(title)}/trailer`);
+  return res.data;
+};

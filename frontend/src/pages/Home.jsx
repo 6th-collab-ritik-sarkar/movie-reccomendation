@@ -19,18 +19,24 @@ const Home = () => {
     fetchTrending();
   }, []);
 
-  const fetchTrending = async () => {
+  const fetchTrending = async (attempt = 0) => {
     try {
       const data = await getTrending();
       if (data.success) {
         setTrending(data.data.results || []);
+        setLoading(false);
       } else {
         setError(data.message || 'Failed to load movies');
+        setLoading(false);
       }
     } catch (err) {
       console.error('Error fetching trending:', err);
+      // Handle startup race where frontend loads before backend is ready.
+      if (!err.response && attempt < 2) {
+        setTimeout(() => fetchTrending(attempt + 1), 1500);
+        return;
+      }
       setError(err.response?.data?.message || 'Could not connect to the server. Please check if the backend is running.');
-    } finally {
       setLoading(false);
     }
   };

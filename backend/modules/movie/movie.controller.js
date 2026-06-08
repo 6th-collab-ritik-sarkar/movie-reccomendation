@@ -1,6 +1,7 @@
 const omdb = require('../../services/omdb.service');
 const groq = require('../../services/groq.service');
 const { generatePrompt } = require('../../utils/promptTemplate');
+const yts = require('yt-search');
 
 const recommendMovies = async (req, res) => {
   try {
@@ -74,4 +75,33 @@ const getMovieDetails = async (req, res) => {
   }
 };
 
-module.exports = { recommendMovies, getTrending, searchMovies, getMovieDetails };
+const getMovieTrailer = async (req, res) => {
+  try {
+    const { title } = req.params;
+    if (!title) {
+      return res.status(400).json({ success: false, message: 'Movie title is required' });
+    }
+
+    const searchQuery = `${title} official trailer`;
+    const searchResult = await yts(searchQuery);
+
+    if (!searchResult || !searchResult.videos || searchResult.videos.length === 0) {
+      return res.status(404).json({ success: false, message: 'Trailer not found' });
+    }
+
+    const firstVideo = searchResult.videos[0];
+    res.json({
+      success: true,
+      data: {
+        videoId: firstVideo.videoId,
+        url: firstVideo.url,
+        title: firstVideo.title,
+      },
+    });
+  } catch (error) {
+    console.error('Trailer search error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { recommendMovies, getTrending, searchMovies, getMovieDetails, getMovieTrailer };

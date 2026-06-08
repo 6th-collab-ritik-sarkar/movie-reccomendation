@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Film, Mail, Lock } from 'lucide-react';
 import { login } from '../services/authService';
 import { useAuth } from '../hooks/useAuth';
@@ -9,12 +9,27 @@ const Login = () => {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { setAuth } = useAuth();
+  const [successMessage, setSuccessMessage] = useState('');
+  const { setAuth, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+    }
+  }, [location.state]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setError('');
+    setSuccessMessage('');
   };
 
   const handleSubmit = async (e) => {
@@ -44,10 +59,15 @@ const Login = () => {
             <span className="text-white font-bold text-2xl">Smart<span className="text-netflix-red">Flick</span></span>
           </Link>
           <h1 className="text-white text-2xl font-bold mt-6">Welcome back</h1>
-          <p className="text-zinc-400 text-sm mt-2">Sign in to your account to continue</p>
+          <p className="text-zinc-400 text-sm mt-2">Existing users can sign in directly with email and password.</p>
         </div>
 
         <div className="card-glass p-8">
+          {successMessage && (
+            <div className="bg-emerald-900/30 border border-emerald-500/50 rounded-lg px-4 py-3 mb-5 text-emerald-300 text-sm animate-fade-in">
+              {successMessage}
+            </div>
+          )}
           {error && (
             <div className="bg-red-900/30 border border-red-500/50 rounded-lg px-4 py-3 mb-5 text-red-400 text-sm animate-fade-in">
               {error}
@@ -114,7 +134,7 @@ const Login = () => {
           <p className="text-center text-zinc-400 text-sm mt-6">
             Don't have an account?{' '}
             <Link to="/signup" className="text-netflix-red hover:underline font-medium" id="signup-link">
-              Create one
+              Register first
             </Link>
           </p>
         </div>

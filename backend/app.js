@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 const authRoutes = require('./modules/auth/auth.routes');
 const movieRoutes = require('./modules/movie/movie.routes');
@@ -13,13 +14,16 @@ const reviewRoutes = require('./modules/review/review.routes');
 const app = express();
 
 // Security & middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : '*',
   credentials: true,
 }));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));

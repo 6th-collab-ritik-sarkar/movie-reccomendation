@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Film, Mail, Lock, User } from 'lucide-react';
 import { signup } from '../services/authService';
@@ -9,8 +9,14 @@ const Signup = () => {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { setAuth } = useAuth();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -27,9 +33,11 @@ const Signup = () => {
     }
     setLoading(true);
     try {
-      const data = await signup({ name: form.name, email: form.email, password: form.password });
-      setAuth({ user: data.user, token: data.token });
-      navigate('/');
+      await signup({ name: form.name, email: form.email, password: form.password });
+      navigate('/login', {
+        replace: true,
+        state: { message: 'Account created successfully. Please sign in with your credentials.' },
+      });
     } catch (err) {
       setError(err.response?.data?.message || 'Signup failed. Please try again.');
     } finally {
@@ -53,7 +61,7 @@ const Signup = () => {
             <span className="text-white font-bold text-2xl">Smart<span className="text-netflix-red">Flick</span></span>
           </Link>
           <h1 className="text-white text-2xl font-bold mt-6">Create your account</h1>
-          <p className="text-zinc-400 text-sm mt-2">Start discovering your next favorite movie</p>
+          <p className="text-zinc-400 text-sm mt-2">Create your account once, then sign in anytime.</p>
         </div>
 
         <div className="card-glass p-8">

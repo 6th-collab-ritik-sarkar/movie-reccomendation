@@ -2,21 +2,37 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Heart, Clock, User as UserIcon, Calendar, 
-  ChevronRight, Trash2, Settings, ExternalLink, Star, MessageSquare 
+  ChevronRight, Trash2, Settings, ExternalLink, Star, MessageSquare, Camera
 } from 'lucide-react';
 import { getProfile, getFavorites, getWatchHistory, removeFavorite } from '../services/userService';
 import { getUserReviews, deleteReview } from '../services/reviewService';
 import MovieCard from '../components/MovieCard';
 import Loader from '../components/Loader';
+import { useAuth } from '../hooks/useAuth';
+import { getAvatarUrl } from '../utils/avatar';
+import api from '../services/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { 
+    favorites, 
+    watchHistory: history, 
+    setFavorites, 
+    setWatchHistory,
+    updateUser 
+  } = useAuth();
+
   const [profile, setProfile] = useState(null);
-  const [favorites, setFavorites] = useState([]);
-  const [history, setHistory] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('favorites');
+
+  // Editing profile states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editFile, setEditFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [saveLoading, setSaveLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -31,8 +47,9 @@ const Dashboard = () => {
         getUserReviews()
       ]);
       setProfile(profData.data);
+      setEditName(profData.data.name);
       setFavorites(favData.data);
-      setHistory(histData.data);
+      setWatchHistory(histData.data);
       setReviews(revData.data);
     } catch (err) {
       console.error(err);
@@ -53,9 +70,54 @@ const Dashboard = () => {
   const handleRemoveFav = async (id) => {
     try {
       await removeFavorite(id);
-      setFavorites(prev => prev.filter(f => f.movieId !== id));
+      setFavorites(favorites.filter(f => f.movieId !== id));
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEditFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+
+    const formData = new FormData();
+    formData.append('name', editName);
+    if (editFile) {
+      formData.append('avatar', editFile);
+    }
+
+    setSaveLoading(true);
+    try {
+      const res = await api.patch('/user/profile', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (res.data && res.data.success) {
+        const updatedUser = res.data.data;
+        setProfile(updatedUser);
+        updateUser({
+          name: updatedUser.name,
+          avatar: updatedUser.avatar,
+        });
+        setIsEditing(false);
+        setEditFile(null);
+        setPreviewUrl(null);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setSaveLoading(false);
     }
   };
 
@@ -73,38 +135,127 @@ const Dashboard = () => {
            <UserIcon className="w-64 h-64 -mr-20 -mt-20" />
         </div>
         
-        <div className="w-24 h-24 bg-gradient-to-br from-netflix-red to-red-800 rounded-2xl flex items-center justify-center text-white text-4xl font-black shadow-2xl relative z-10">
-          {profile?.name?.charAt(0)}
-        </div>
-        
-        <div className="flex-1 text-center md:text-left relative z-10">
-          <h1 className="text-3xl font-black text-white mb-1">{profile?.name}</h1>
-          <p className="text-zinc-400 mb-4">{profile?.email}</p>
-          <div className="flex flex-wrap justify-center md:justify-start gap-4">
-            <div className="px-4 py-2 bg-zinc-800/50 rounded-lg border border-zinc-700">
-              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Favorites</p>
-              <p className="text-xl font-bold text-white">{favorites.length}</p>
+        {isEditing ? (
+          <form onSubmit={handleSaveProfile} className="flex flex-col md:flex-row items-center gap-6 w-full relative z-10">
+            {/* Avatar Upload Area */}
+            <div className="relative group cursor-pointer w-24 h-24 flex-shrink-0">
+              {previewUrl || profile?.avatar ? (
+                <img 
+                  src={previewUrl || getAvatarUrl(profile?.avatar)} 
+                  alt={profile?.name} 
+                  className="w-24 h-24 rounded-2xl object-cover shadow-2xl border border-netflix-red/20"
+                />
+              ) : (
+                <div className="w-24 h-24 bg-gradient-to-br from-netflix-red to-red-800 rounded-2xl flex items-center justify-center text-white text-4xl font-black shadow-2xl">
+                  {editName?.charAt(0) || profile?.name?.charAt(0)}
+                </div>
+              )}
+              <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white">
+                <Camera className="w-6 h-6 mb-1" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Upload</span>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleFileChange}
+                />
+              </label>
             </div>
-            <div className="px-4 py-2 bg-zinc-800/50 rounded-lg border border-zinc-700">
-              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Watched</p>
-              <p className="text-xl font-bold text-white">{history.length}</p>
-            </div>
-            <div className="px-4 py-2 bg-zinc-800/50 rounded-lg border border-zinc-700">
-              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Reviews</p>
-              <p className="text-xl font-bold text-white">{reviews.length}</p>
-            </div>
-            <div className="px-4 py-2 bg-zinc-800/50 rounded-lg border border-zinc-700">
-              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Member Since</p>
-              <p className="text-xl font-bold text-white">
-                {new Date(profile?.createdAt).getFullYear()}
-              </p>
-            </div>
-          </div>
-        </div>
 
-        <button className="btn-secondary flex items-center gap-2 relative z-10">
-          <Settings className="w-4 h-4" /> Edit Profile
-        </button>
+            {/* Profile Editing Inputs */}
+            <div className="flex-1 flex flex-col gap-3 w-full text-center md:text-left">
+              <div>
+                <label className="block text-zinc-500 text-xs font-bold uppercase mb-1">Display Name</label>
+                <input 
+                  type="text" 
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  required
+                  placeholder="Enter name"
+                  className="bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-netflix-red w-full max-w-md font-bold text-lg"
+                />
+              </div>
+              {editFile && (
+                <p className="text-xs text-zinc-400">Selected file: {editFile.name}</p>
+              )}
+              <p className="text-zinc-500 text-sm">{profile?.email}</p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 mt-4 md:mt-0">
+              <button 
+                type="submit" 
+                disabled={saveLoading}
+                className="btn-primary flex items-center gap-2 px-6 py-2.5 text-sm disabled:opacity-50"
+              >
+                {saveLoading ? 'Saving...' : 'Save'}
+              </button>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditName(profile?.name || '');
+                  setEditFile(null);
+                  setPreviewUrl(null);
+                }}
+                className="btn-secondary flex items-center gap-2 px-6 py-2.5 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <div className="w-24 h-24 flex-shrink-0 relative z-10">
+              {profile?.avatar ? (
+                <img 
+                  src={getAvatarUrl(profile.avatar)} 
+                  alt={profile.name} 
+                  className="w-24 h-24 rounded-2xl object-cover shadow-2xl border border-netflix-red/20"
+                />
+              ) : (
+                <div className="w-24 h-24 bg-gradient-to-br from-netflix-red to-red-800 rounded-2xl flex items-center justify-center text-white text-4xl font-black shadow-2xl">
+                  {profile?.name?.charAt(0)}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex-1 text-center md:text-left relative z-10">
+              <h1 className="text-3xl font-black text-white mb-1">{profile?.name}</h1>
+              <p className="text-zinc-400 mb-4">{profile?.email}</p>
+              <div className="flex flex-wrap justify-center md:justify-start gap-4">
+                <div className="px-4 py-2 bg-zinc-800/50 rounded-lg border border-zinc-700">
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Favorites</p>
+                  <p className="text-xl font-bold text-white">{favorites.length}</p>
+                </div>
+                <div className="px-4 py-2 bg-zinc-800/50 rounded-lg border border-zinc-700">
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Watched</p>
+                  <p className="text-xl font-bold text-white">{history.length}</p>
+                </div>
+                <div className="px-4 py-2 bg-zinc-800/50 rounded-lg border border-zinc-700">
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Reviews</p>
+                  <p className="text-xl font-bold text-white">{reviews.length}</p>
+                </div>
+                <div className="px-4 py-2 bg-zinc-800/50 rounded-lg border border-zinc-700">
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Member Since</p>
+                  <p className="text-xl font-bold text-white">
+                    {new Date(profile?.createdAt).getFullYear()}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => {
+                setIsEditing(true);
+                setEditName(profile?.name || '');
+              }}
+              className="btn-secondary flex items-center gap-2 relative z-10"
+            >
+              <Settings className="w-4 h-4" /> Edit Profile
+            </button>
+          </>
+        )}
       </header>
 
       {/* Main Content */}

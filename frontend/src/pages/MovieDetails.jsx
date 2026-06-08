@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Star, Clock, Calendar, Heart, Share2, ArrowLeft, 
-  PlayCircle, ThumbsUp, Globe, Plus, Check 
+  PlayCircle, ThumbsUp, Globe, Plus, Check, X 
 } from 'lucide-react';
-import { getMovieDetails, getTrending } from '../services/movieService';
+import { getMovieDetails, getTrending, getMovieTrailer } from '../services/movieService';
 import { addFavorite, removeFavorite, getFavorites, addToHistory } from '../services/userService';
 import { getMovieReviews, addReview, deleteReview } from '../services/reviewService';
 import { useAuth } from '../hooks/useAuth';
@@ -23,6 +23,43 @@ const MovieDetails = () => {
   const [reviews, setReviews] = useState([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 10, comment: '' });
+  const [showTrailerModal, setShowTrailerModal] = useState(false);
+  const [trailerId, setTrailerId] = useState(null);
+  const [trailerLoading, setTrailerLoading] = useState(false);
+
+  const handleWatchTrailer = async () => {
+    if (trailerId) {
+      setShowTrailerModal(true);
+      return;
+    }
+    
+    setTrailerLoading(true);
+    try {
+      const data = await getMovieTrailer(movie.Title);
+      if (data && data.success && data.data && data.data.videoId) {
+        setTrailerId(data.data.videoId);
+        setShowTrailerModal(true);
+        
+        // Track watch history when trailer starts playing
+        if (isAuthenticated) {
+          await addToHistory({
+            movieId: movie.imdbID,
+            title: movie.Title,
+            poster_path: movie.Poster,
+            vote_average: movie.imdbRating,
+            release_date: movie.Year
+          });
+        }
+      } else {
+        alert('Trailer not found');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Could not fetch trailer');
+    } finally {
+      setTrailerLoading(false);
+    }
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -47,15 +84,6 @@ const MovieDetails = () => {
       setMovie(movieData);
       
       if (isAuthenticated) {
-        // Track history
-        addToHistory({
-          movieId: movieData.imdbID,
-          title: movieData.Title,
-          poster_path: movieData.Poster,
-          vote_average: movieData.imdbRating,
-          release_date: movieData.Year
-        });
-
         // Check if fav
         const favData = await getFavorites();
         setIsFav(favData.data.some(f => f.movieId === id));
@@ -204,8 +232,12 @@ const MovieDetails = () => {
             <p className="text-zinc-400 text-lg italic mb-6">{movie.Awards}</p>
 
             <div className="flex flex-wrap justify-center md:justify-start gap-4 mb-8">
-              <button className="btn-primary flex items-center gap-2 px-8 py-3.5 text-lg">
-                <PlayCircle className="w-6 h-6" /> Watch Trailer
+              <button 
+                onClick={handleWatchTrailer}
+                disabled={trailerLoading}
+                className="btn-primary flex items-center gap-2 px-8 py-3.5 text-lg disabled:opacity-50"
+              >
+                <PlayCircle className="w-6 h-6" /> {trailerLoading ? 'Searching...' : 'Watch Trailer'}
               </button>
               <button 
                 onClick={toggleFavorite}
@@ -337,6 +369,33 @@ const MovieDetails = () => {
           </div>
         </div>
       </div>
+
+      {/* Trailer Modal */}
+      {showTrailerModal && trailerId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="relative w-full max-w-4xl bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-zinc-800">
+              <h3 className="text-white font-bold text-lg">{movie.Title} - Official Trailer</h3>
+              <button 
+                onClick={() => setShowTrailerModal(false)}
+                className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="relative w-full pt-[56.25%] bg-black">
+              <iframe
+                src={`https://www.youtube.com/embed/${trailerId}?autoplay=1`}
+                title={`${movie.Title} Trailer`}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full"
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

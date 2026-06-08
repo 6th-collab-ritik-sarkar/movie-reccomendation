@@ -4,9 +4,9 @@ const STORAGE_KEY = 'smartmovie_auth';
 const getStoredAuth = () => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : { user: null, token: null };
+    return stored ? JSON.parse(stored) : { user: null, token: null, favorites: [], watchHistory: [] };
   } catch {
-    return { user: null, token: null };
+    return { user: null, token: null, favorites: [], watchHistory: [] };
   }
 };
 
@@ -30,14 +30,38 @@ const authStore = {
   },
 
   setAuth({ user, token }) {
-    this._state = { user, token };
+    this._state = {
+      ...this._state,
+      user,
+      token,
+      favorites: this._state.favorites || [],
+      watchHistory: this._state.watchHistory || []
+    };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(this._state));
     this._notify();
   },
 
   clearAuth() {
-    this._state = { user: null, token: null };
+    this._state = { user: null, token: null, favorites: [], watchHistory: [] };
     localStorage.removeItem(STORAGE_KEY);
+    this._notify();
+  },
+
+  setFavorites(favorites) {
+    this._state = { ...this._state, favorites };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(this._state));
+    this._notify();
+  },
+
+  setWatchHistory(watchHistory) {
+    this._state = { ...this._state, watchHistory };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(this._state));
+    this._notify();
+  },
+
+  updateUser(user) {
+    this._state = { ...this._state, user: { ...this._state.user, ...user } };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(this._state));
     this._notify();
   },
 

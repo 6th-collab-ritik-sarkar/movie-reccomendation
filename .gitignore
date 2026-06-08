@@ -31,3 +31,6 @@ build/
 
 # Misc
 .env.example
+
+# Uploads
+backend/public/uploads/

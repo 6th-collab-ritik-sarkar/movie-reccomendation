@@ -22,10 +22,18 @@ const signup = async ({ name, email, password }) => {
 
 const login = async ({ email, password }) => {
   const user = await User.findOne({ email }).select('+password');
-  if (!user) throw new Error('Invalid email or password');
+  if (!user) {
+    const error = new Error('No account found with this email. Please register first.');
+    error.statusCode = 404;
+    throw error;
+  }
 
   const isMatch = await user.comparePassword(password);
-  if (!isMatch) throw new Error('Invalid email or password');
+  if (!isMatch) {
+    const error = new Error('Incorrect password. Please try again.');
+    error.statusCode = 401;
+    throw error;
+  }
 
   const token = generateToken(user._id);
   return {

@@ -43,7 +43,8 @@ const removeFavorite = async (req, res) => {
 const getWatchHistory = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    res.json({ success: true, data: user.watchHistory });
+    const validHistory = user.watchHistory.filter((h) => h.movieId && h.movieId !== 'NaN');
+    res.json({ success: true, data: validHistory });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -56,8 +57,8 @@ const addToWatchHistory = async (req, res) => {
 
     const user = await User.findById(req.user._id);
     // Remove if already exists to update timestamp
-    user.watchHistory = user.watchHistory.filter((h) => h.movieId !== Number(movieId));
-    user.watchHistory.unshift({ movieId: Number(movieId), title, poster_path, vote_average, release_date });
+    user.watchHistory = user.watchHistory.filter((h) => h.movieId !== String(movieId));
+    user.watchHistory.unshift({ movieId: String(movieId), title, poster_path, vote_average, release_date });
 
     // Keep max 50 history items
     if (user.watchHistory.length > 50) {
@@ -80,6 +81,7 @@ const getProfile = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        avatar: user.avatar,
         favoritesCount: user.favorites.length,
         watchHistoryCount: user.watchHistory.length,
         createdAt: user.createdAt,
@@ -90,4 +92,46 @@ const getProfile = async (req, res) => {
   }
 };
 
-module.exports = { getFavorites, addFavorite, removeFavorite, getWatchHistory, addToWatchHistory, getProfile };
+const updateProfile = async (req, res) => {
+  try {
+    const { name } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (name) user.name = name;
+
+    if (req.file) {
+      user.avatar = `/public/uploads/${req.file.filename}`;
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        favoritesCount: user.favorites.length,
+        watchHistoryCount: user.watchHistory.length,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = {
+  getFavorites,
+  addFavorite,
+  removeFavorite,
+  getWatchHistory,
+  addToWatchHistory,
+  getProfile,
+  updateProfile,
+};

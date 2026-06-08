@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Film, Search, User, LogOut, Heart, Clock, Home, X, Menu } from 'lucide-react';
+import { Film, Search, User, LogOut, Heart, Clock, Home, X, Menu, Info } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import SearchBar from './SearchBar';
+import { getAvatarUrl } from '../utils/avatar';
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -35,6 +36,7 @@ const Navbar = () => {
           { to: '/dashboard', label: 'Dashboard', icon: User },
         ]
       : []),
+    { to: '/about', label: 'About', icon: Info },
   ];
 
   return (
@@ -94,9 +96,17 @@ const Navbar = () => {
                     className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
                     id="navbar-dashboard-link"
                   >
-                    <span className="w-7 h-7 bg-netflix-red rounded-full flex items-center justify-center text-white text-xs font-bold">
-                      {user?.name?.charAt(0)?.toUpperCase()}
-                    </span>
+                    {user?.avatar ? (
+                      <img 
+                        src={getAvatarUrl(user.avatar)} 
+                        alt={user.name} 
+                        className="w-7 h-7 rounded-full object-cover border border-zinc-700"
+                      />
+                    ) : (
+                      <span className="w-7 h-7 bg-netflix-red rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {user?.name?.charAt(0)?.toUpperCase()}
+                      </span>
+                    )}
                     <span className="hidden lg:block">{user?.name?.split(' ')[0]}</span>
                   </Link>
                   <button
